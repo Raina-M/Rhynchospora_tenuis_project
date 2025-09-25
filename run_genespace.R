@@ -37,21 +37,8 @@ ggthemes <- ggplot2::theme(
   
 customPal <- colorRampPalette(c("#F9AC60", "#307BB5", "#D61F27", "#ADD8E7", "#FCF7BF"))
 
-chr_dict <- c("Chr1_h1" = 1, "Chr2_h1" = 2, "Chr3_h1" = 3, "Chr4_h1" = 4, "Chr5_h1" = 5,
-              "scaffold_13_a1"= 2, "scaffold_7_a1"= 1, "scaffold_1_a1"= 3,
-              "Chr1_h1" = 1, "Chr2_h1" = 2, "Chr1_h2" = 1, "Chr2_h2" = 2,
-              "Chr1_h1" = 1, "Chr2_h1" = 2, "Chr1_h2" = 1, "Chr2_h2" = 2,
-              "Chr1_h1" = 1, "Chr2_h1" = 2, "Chr1_h2" = 1, "Chr2_h2" = 2,
-              "JGV_Chr1_h1" = 1, "JGV_Chr2_h1" = 2, "JGV_Chr1_h2" = 1, "JGV_Chr2_h2" = 2,
-              "PECP2_Chr1_h1" = 1, "PECP2_Chr2_h1" = 2, "PECP2_Chr1_h2" = 1, "PECP2_Chr2_h2" = 2,
-              "035-6_Chr1_h1" = 1, "035-6_Chr2_h1" = 2, "035-6_Chr1_h2" = 1, "035-6_Chr2_h2" = 2,
-              "PECP3_Chr1_h1" = 1, "PECP3_Chr2_h1" = 2, "PECP3_Chr1_h2" = 1, "PECP3_Chr2_h2" = 2,
-              "036_Chr1_h1" = 1, "036_Chr2_h1" = 2, "036_Chr1_h2" = 1, "036_Chr2_h2" = 2,
-              "036-7_Chr1_h1" = 1, "036-7_Chr2_h1" = 2, "036-7_Chr1_h2" = 1, "036-7_Chr2_h2" = 2)
 
-chr_dict_char <- as.character(chr_dict)
-
-pdf("/netscratch/dep_mercier/grp_marques/marques/Rhync_tenuis_pangenome_project/GENESPACE/genespace_all_acc.pdf",
+pdf(paste(wd, "genespace_all_acc.pdf", sep="/"),
     family="Helvetica", height=11.7, width=8.3)
 par(mai = c(0.4, 1, 0.1, 0.7)); # margin: bottom, left, top, right
 
@@ -69,35 +56,6 @@ ripd <- plot_riparian(
                 "PECP3 h1","PECP3 h2",
                 "036 h1","036 h2",
                 "036-7 h1","036-7 h2"),
-  palette = customPal,
-  addThemes = ggthemes,
-  braidAlpha = .75,
-  chrExpand = 0.75,
-  chrLabFontSize = 8,
-  chrBorderLwd = 0.3,
-  chrBorderCol = "black",
-  useOrder = FALSE,
-  useRegions = TRUE,
-  invertTheseChrs = data.frame(genome=c("Rbreviuscula"), chr=c("Chr3_h1")),
-  #chrLabFun = function(x) str_replace_all(x, chr_dict_char),
-  customRefChrOrder=c("Chr2_h1", "Chr5_h1", "Chr1_h1", "Chr4_h1", "Chr3_h1"))
-
-dev.off()
-
-
-
-# check reference with PECP2
-pdf("/netscratch/dep_mercier/grp_marques/marques/Rhync_tenuis_pangenome_project/GENESPACE/ref_and_pecp.pdf",
-    family="Helvetica", height=11.7, width=8.3)
-par(mai = c(0.4, 1, 0.1, 0.7)); # margin: bottom, left, top, right
-
-ripd <- plot_riparian(
-  gsParam = gpar,
-  refGenome = "Rbreviuscula",
-  genomeIDs = c("Rbreviuscula", "Raustrobrasiliensis",
-                "Rhync_tenuis_ref.hap1", "Rhync_tenuis_ref.hap2",
-                "Rhync_tenuis_6344B.PECP2.hap1", "Rhync_tenuis_6344B.PECP2.hap2",
-                "Rhync_tenuis_6344C.PECP3.hap1", "Rhync_tenuis_6344C.PECP3.hap2"),
   palette = customPal,
   addThemes = ggthemes,
   braidAlpha = .75,
