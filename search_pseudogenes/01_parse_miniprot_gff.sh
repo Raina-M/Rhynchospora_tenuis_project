@@ -9,9 +9,54 @@
 #     cds_table.tsv   — one row per CDS GFF feature
 #     stop_table.tsv  — one row per stop_codon GFF feature
 #
-# CORRECTIONS APPLIED:
-#   - Added an incremental alignment index (aln_idx) to both PAF and mRNA 
-#     tables to enable a robust relational merge instead of a risky positional merge.
+# KEY FORMAT FACTS (from miniprot manual https://lh3.github.io/miniprot/miniprot.html):
+#
+#   ##PAF columns (1-based awk index, tab-separated):
+#     $1  literal "##PAF"
+#     $2  protein_id
+#     $3  protein_len       (aa)
+#     $4  q_start           (0-based, on protein)
+#     $5  q_end             (0-based, on protein)
+#     $6  strand            ("+" / "-" / "*" for unmapped)
+#     $7  contig
+#     $8  contig_len
+#     $9  g_start           (0-based genomic start)
+#     $10 g_end             (0-based genomic end)
+#     $11 n_match_nt        (nucleotides matching, EXCLUDING introns)
+#     $12 aln_span_excl_intron  (nt in alignment block, EXCLUDING introns)
+#     $13 mapq              (0-255; 255 = missing/unavailable)
+#     $14+ optional SAM-style tags: AS:i ms:i np:i fs:i st:i da:i do:i cg:Z cs:Z
+#
+#   Optional tag meanings:
+#     fs:i  Number of frameshift events
+#     st:i  Number of in-frame stop codons (premature stops in the alignment)
+#     da:i  Distance to nearest upstream START codon
+#              da=0  → alignment begins at an ATG (proper initiation)
+#              da=-1 → no start codon found nearby (missing/disrupted start)
+#              da>0  → start codon is da bp upstream (partial alignment)
+#     do:i  Distance to nearest downstream STOP codon
+#              do=0  → alignment ends at a stop codon (proper termination)
+#              do>0  → stop codon is do bp downstream (truncated alignment)
+#
+#   GFF mRNA attributes:
+#     ID, Rank, Identity, Positive, Frameshift, StopCodon, Target
+#     NOTE: Donor= and Acceptor= are NOT on mRNA lines.
+#
+#   GFF CDS attributes:
+#     Parent, Rank, Identity, Frameshift, StopCodon, Donor, Acceptor, Target
+#     Donor=/Acceptor= are written ONLY when the splice site is NON-CANONICAL.
+#     Canonical GT-AG splice sites are NOT written at all (absence = canonical).
+#     NN = unresolvable/problematic splice site.
+#
+#   GFF stop_codon feature:
+#     Written ONLY when the alignment reaches the C-terminus of the protein AND
+#     the NEXT codon downstream is a stop codon. This represents NORMAL gene
+#     termination, NOT a premature stop codon. Premature stops are in st:i / StopCodon=.
+#
+#   Unaligned proteins: PAF lines with $6="*" — skip these (no mRNA follows).
+#
+# USAGE:
+#   bash 01_parse_miniprot_gff.sh <miniprot.gff> <output_dir>
 # =============================================================================
 
 set -euo pipefail
@@ -139,6 +184,10 @@ echo "[01] mRNA table: $(( $(wc -l < "$OUTDIR/mrna_table.tsv") - 1 )) mRNA recor
 # =============================================================================
 # PART 3 — CDS feature lines
 # =============================================================================
+# CRITICAL: Donor= and Acceptor= are ONLY written when the splice site is
+# NON-CANONICAL. Canonical GT-AG sites are simply NOT written.
+# Absence of Donor= / Acceptor= on a CDS line means the splice site IS
+# canonical GT-AG, not that it is absent.
 
 echo "[01] Extracting CDS features..."
 
@@ -178,6 +227,10 @@ echo "[01] CDS table: $(( $(wc -l < "$OUTDIR/cds_table.tsv") - 1 )) CDS records"
 # =============================================================================
 # PART 4 — stop_codon feature lines
 # =============================================================================
+# miniprot's stop_codon feature means NORMAL C-terminal termination:
+# the alignment reached the protein C-terminus AND the next codon is a stop.
+# This is NOT a premature stop — it is evidence of a properly terminating ORF.
+# Premature stop codons are encoded in st:i (PAF) and StopCodon= (mRNA attrs).
 
 echo "[01] Extracting stop_codon features..."
 
