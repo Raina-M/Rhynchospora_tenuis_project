@@ -6,18 +6,48 @@ PURPOSE:
     Classify each miniprot alignment as FUNCTIONAL, PROCESSED_PSEUDO,
     NONPROCESSED_PSEUDO, LOW_QUALITY_HIT, or AMBIGUOUS.
 
-CORRECTIONS APPLIED:
-  1. Relational Merge: Uses 'aln_idx' for explicit inner-joins instead of positional concat.
-  2. Aligned Span Ratio: Bases 'span_ratio' strictly on the aligned query coordinates
-     rather than total protein length to eliminate the truncation classification bug.
-  3. Parent Gene Architecture: Added optional --query_exon_counts parameter to prevent 
-     naturally single-exon orthologs from being falsely classified as PROCESSED_PSEUDO.
-  4. Deactivated Unitary Rule: Masked genomes cannot reveal unitary losses safely. 
-     Rule 4 has been deactivated to avoid blind-spot false positives.
-  5. Logic Flow Repair: Rule 5 now tracks internal 'orf_disruptions', allowing pure 
-     boundary truncations to gracefully land as clean partial-length FUNCTIONAL hits.
-  6. String Defaults Guarded: Intercepts and parses "NA" or missing strings before 
-     assigning boundary scores, removing the hidden 'da=0' (intact) corruption trap.
+Reading info from miniprot
+1. da:i = Distance to nearest UPSTREAM start codon
+       da=0   → alignment starts at ATG (proper initiation)
+       da=-1  → NO start codon found nearby (disrupted/missing start)
+       da>0   → partial hit, start codon da bp upstream
+     PSEUDOGENE SIGNAL: da=-1 means the ORF has no upstream ATG.
+
+  2. do:i = Distance to nearest DOWNSTREAM stop codon
+       do=0   → alignment ends cleanly at a stop codon (proper termination)
+       do>0   → stop codon is do bp away (truncated, or stop codon lost)
+     PSEUDOGENE SIGNAL: do>0 when query coverage is high (stop codon missing).
+
+  3. stop_codon GFF feature = NORMAL C-terminal termination (NOT premature stop).
+     The manual states: "a stop_codon is only reported if the alignment reaches
+     the C-terminus AND the next codon IS a stop codon."
+     → stop_codon = good sign for a functional gene, NOT a pseudogene signal.
+     → Premature stops are in st:i (PAF) and StopCodon= (mRNA attrs) ONLY.
+
+  4. Donor= / Acceptor= in CDS attributes are written ONLY when NON-CANONICAL.
+     Canonical GT-AG splice sites are NOT written (absence = canonical GT-AG).
+     → "has non-canonical splice" = Donor/Acceptor present on any CDS line.
+     → "all canonical" = Donor/Acceptor absent on ALL CDS lines (with introns).
+     → Single-exon alignment (processed pseudo) = no CDS-to-CDS transitions,
+       so Donor/Acceptor will naturally be absent.
+     So use n_cds_blocks > 1 to detect multi-exon; then
+       non-canonical = any Donor/Acceptor attribute present.
+
+  5. mapq range is 0-255 (255 = missing), NOT 0-60. Do not flag mapq=0 as
+     "low quality" — 0 is a valid score. Only flag mapq=255 (missing).
+
+  6. PAF col 11 = nt in alignment EXCLUDING introns (coding span).
+     PAF genomic_span = g_end - g_start (INCLUDES introns) — use this for
+     intron detection. 
+
+USAGE:
+    python3 02_classify_pseudogenes.py \
+        --paf   <outdir>/paf_table.tsv \
+        --mrna  <outdir>/mrna_table.tsv \
+        --cds   <outdir>/cds_table.tsv \
+        --stop  <outdir>/stop_table.tsv \
+        [--functional_gene_lengths spans.tsv] \
+        --out   <outdir>/pseudogene_candidates.tsv
 ==============================================================================
 """
 
@@ -44,7 +74,11 @@ DO_FAR_THRESH = 50    # do > this when q_coverage is high → likely missing sto
 # ==============================================================================
 
 def safe_int(value, default=0):
-    """Convert to int with full fallback chain."""
+    """
+    Convert to int with full fallback chain.
+    Handles: integers, floats, numeric strings, NaN, None, empty strings,
+    and residual SAM/PAF tag strings like 'da:i:0' (last-resort parsing).
+    """
     if value is None:
         return default
     try:
@@ -85,7 +119,20 @@ def safe_float(value, default=0.0):
 # ==============================================================================
 
 def compute_cds_stats(cds):
-    """Per mRNA: count CDS blocks, total coding length, and splice site quality."""
+    """
+    Per mRNA: count CDS blocks, total coding length, and splice site quality.
+    Donor= / Acceptor= attributes are written on CDS
+    lines ONLY when the splice site is NON-canonical. Canonical GT-AG sites
+    produce NO Donor/Acceptor attribute. Therefore:
+      - has_noncanon_splice = True if ANY CDS line has Donor= or Acceptor=
+      - A single-exon alignment (processed pseudo) will naturally have no
+        Donor/Acceptor because there are no intron junctions to evaluate.
+      - A multi-exon alignment with all GT-AG introns also has no Donor/Acceptor.
+    We can only detect PRESENCE of non-canonical splicing, not confirm canonical.
+    Use n_cds_blocks > 1 to detect multi-exon structure.
+
+    Returns DataFrame: mrna_id, n_cds_blocks, total_cds_len, has_noncanon_splice
+    """
     def summarise(g):
         n_blocks  = len(g)
         total_len = int((g["cds_end"] - g["cds_start"] + 1).sum())
@@ -108,7 +155,16 @@ def compute_cds_stats(cds):
 # ==============================================================================
 
 def compute_stop_stats(stop):
-    """Count stop_codon GFF features per mRNA."""
+    """
+    Count stop_codon GFF features per mRNA.
+    stop_codon is written ONLY when the alignment
+    reaches the C-terminus AND the next codon IS a stop codon. This means
+    stop_codon = PROPER TERMINATION (good sign for a functional gene).
+    It is NOT a premature stop codon signal.
+
+    We still track it because its presence (has_terminal_stop=True) is useful
+    as supporting evidence for completeness of the alignment.
+    """
     if stop is None or len(stop) == 0:
         return pd.DataFrame(columns=["mrna_id", "has_terminal_stop"])
     counts = (
@@ -127,7 +183,28 @@ def compute_stop_stats(stop):
 
 def build_evidence(row, n_cds, has_noncanon_splice,
                    has_terminal_stop, is_only_hit, func_span, query_exon_count):
-    """Collect all pseudogene evidence signals for one alignment."""
+    """
+    Collect all pseudogene evidence signals for one alignment.
+    
+    Returns (evidence_list, fs_total, st_total).
+
+    Evidence token format: SIGNAL_NAME:detail
+
+    Signal sources and their correct interpretation:
+      FRAMESHIFT       — fs:i (PAF) and/or Frameshift= (mRNA GFF attr)
+      PREMATURE_STOP   — st:i (PAF) and/or StopCodon= (mRNA GFF attr)
+                         These are in-frame stops WITHIN the alignment.
+      MISSING_START    — da=-1: no upstream ATG found → start codon disrupted
+      INTACT_START     — da=0: alignment starts at ATG → proper initiation
+      MISSING_STOP     — do>DO_FAR_THRESH with high q_cov → stop codon lost
+      INTACT_STOP      — do=0: alignment ends at stop codon → proper termination
+      TERMINAL_STOP_FEAT — stop_codon GFF feature present = proper C-terminal stop
+                           (GOOD sign, not pseudogene evidence)
+      SINGLE_EXON      — n_cds <= 2 (processed pseudo signal)
+      MULTI_EXON       — n_cds > 2 (intron-exon structure retained)
+      NONCANON_SPLICE  — Donor/Acceptor present on a CDS line → non-GT-AG intron
+      COMPACT_SPAN     — genomic_span / (prot_len*3) <= INTRON_RATIO_MAX
+    """
     ev = []
 
     # ── Premature frameshifts and stop codons ─────────────────────────────────
@@ -234,7 +311,23 @@ def build_evidence(row, n_cds, has_noncanon_splice,
 
 def classify(row, n_cds, evidence, fs_total, st_total,
              has_noncanon_splice, has_terminal_stop, is_only_hit, query_exon_count):
-    """Assign classification and confidence score."""
+    """
+    Assign classification and confidence score.
+    ORF disruption signals (strong):
+      - fs_total > 0  (frameshifts)
+      - st_total > 0  (premature in-frame stop codons)
+      - da = -1       (no upstream start codon)
+      - do > threshold with high coverage (stop codon lost)
+
+    Processed pseudogene (retrotransposed):
+      compact genomic span + single exon + ORF disrupted
+      only called PROCESSED if the parent gene is NOT also single-exon
+      (single-exon parent genes look identical under simple exon-count test)
+
+    Non-processed pseudogene (duplicated gene decay):
+      multi-exon structure + ORF disrupted (frameshifts/premature stops)
+      may have non-canonical splice sites as the gene decays
+    """
     identity     = safe_float(row.get("identity",   0.0))
     q_cov        = safe_float(row.get("q_coverage", 0.0))
     genomic_span = safe_int(row.get("genomic_span", 0))
