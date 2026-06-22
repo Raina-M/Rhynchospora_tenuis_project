@@ -1,0 +1,130 @@
+# Load required libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(patchwork)
+
+setwd("/netscratch/dep_mercier/grp_marques/marques/Rhync_tenuis_pangenome_project/Pangenome_subphasing/Rtenuis_PECP3_subphasing_phase-results/Rtenuis_PECP3_subphasing_k15_q200_f2.circos/data")
+
+# ---------------------------------------------------------
+# 1. Load Genome Sizes & Feature Data
+# ---------------------------------------------------------
+# Genome sizes
+genome_sizes <- read.table("PECP3.genome", header = FALSE, col.names = c("chr", "size"))
+# Get chromosome max size for x-axis scaling
+chr_max <- max(genome_sizes$size)
+
+# Feature 1: Significant enrichment of subgenome-specific k-mers
+f1 <- read.table("sg_enrich_renamed.txt", header = FALSE,
+                 col.names = c("chr", "start", "end", "color"),
+                 comment.char = "")
+
+# Feature 2: Normalized proportion of subgenome-specific k-mers
+f2 <- read.table("sg_ratio_renamed.txt", header = FALSE,
+                 col.names = c("chr", "start", "end", "ratio"))
+max_ratio = 1
+
+# Features 3 & 4: Absolute counts of hap1 & 2 specific k-mers
+f3 <- read.table("subg_kmers_h1_renamed.txt", header = FALSE, col.names = c("chr", "start", "end", "count1"))
+f4 <- read.table("subg_kmers_h2_renamed.txt", header = FALSE, col.names = c("chr", "start", "end", "count2"))
+
+# Feature 5: Count of subgenome-specific LTR-RTs
+f5 <- read.table("ltr_density_renamed.txt", header = FALSE, col.names = c("chr", "start", "end", "array"), stringsAsFactors = FALSE)
+# Parse array at first
+# Pre-calculate stack heights for Feature 5 by splitting the comma-separated string
+f5_parsed <- f5 %>%
+  separate(array, into = c("hap1", "hap2", "other"), sep = ",", convert = TRUE) %>%
+  mutate(
+    ymin1 = 0,         ymax1 = hap1,
+    ymin2 = ymax1,     ymax2 = ymax1 + hap2,
+    ymin3 = ymax2,     ymax3 = ymax2 + other
+  )
+
+# ---------------------------------------------------------
+# 2. Track Building Function
+# ---------------------------------------------------------
+# This function creates a 5-track stack for a single chromosome
+build_chr_plot <- function(chr_name) {
+  
+  # Standard theme for tracks (removes x-axis for cleaner stacking)
+  track_theme <- theme_classic() + 
+    theme(
+      axis.text.y = element_text(size=12),
+      axis.title.y = element_text(size=12),
+      axis.title.x = element_blank(),
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      #panel.grid.minor = element_blank(),
+      #panel.grid.major.x = element_blank(),
+      plot.margin = margin(2, 5, 2, 5) # Tight margins
+    )
+  
+  # -- Track 1: Literal Colors --
+  p1 <- ggplot(f1 %>% filter(chr == chr_name)) +
+    geom_rect(aes(xmin = start, xmax = end, ymin = 0, ymax = 1, fill = color)) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, chr_max), expand = c(0, 0)) +
+    labs(title = chr_name, y = "Enriched\nk-mers") +
+    track_theme +
+    theme(plot.title = element_text(hjust = 0.5,),
+          axis.text.y = element_blank(), axis.ticks.y = element_blank())
+  
+  # -- Track 2: Density with Two-Tone Fill --
+  p2 <- ggplot(f2 %>% filter(chr == chr_name)) +
+    # Fill above density (Hap2 as Background)
+    geom_rect(aes(xmin = start, xmax = end, ymin = ratio, ymax = max_ratio), fill = "#1F77B4") +
+    # Fill below density (Hap1 as Foreground)
+    geom_rect(aes(xmin = start, xmax = end, ymin = 0, ymax = ratio), fill = "#FF8010") +
+    scale_x_continuous(limits = c(0, chr_max), expand = c(0, 0)) +
+    labs(y = "% k-mer") + track_theme
+  
+  # -- Track 3: Count 1 --
+  p3 <- ggplot(f3 %>% filter(chr == chr_name)) +
+    geom_rect(aes(xmin = start, xmax = end, ymin = 0, ymax = count1), fill = "#FF8010") +
+    scale_x_continuous(limits = c(0, chr_max), expand = c(0, 0)) +
+    labs(y = "Hap1\nk-mers") + track_theme
+  
+  # -- Track 4: Count 2 --
+  p4 <- ggplot(f4 %>% filter(chr == chr_name)) +
+    geom_rect(aes(xmin = start, xmax = end, ymin = 0, ymax = count2), fill = "#1F77B4") +
+    scale_x_continuous(limits = c(0, chr_max), expand = c(0, 0)) +
+    labs(y = "Hap2\nk-mers") + track_theme
+  
+  # -- Track 5: Stacked Array --
+  p5 <- ggplot(f5_parsed %>% filter(chr == chr_name)) +
+    geom_rect(aes(xmin = start, xmax = end, ymin = ymin1, ymax = ymax1), fill = "#FF8010") +
+    geom_rect(aes(xmin = start, xmax = end, ymin = ymin2, ymax = ymax2), fill = "#1F77B4") +
+    geom_rect(aes(xmin = start, xmax = end, ymin = ymin3, ymax = ymax3), fill = "darkgrey") +
+    scale_x_continuous(limits = c(0, chr_max), expand = c(0, 0),
+                       labels = scales::label_number(scale = 1e-6)) +
+    labs(x = "Position (Mb)", y = "LTR-RT density\n(count/Mb)") +
+    theme_classic() + 
+    theme(axis.text = element_text(size=12),
+          axis.title.x = element_text(size=12),
+          plot.margin = margin(2, 5, 10, 5))
+  
+  # Assemble the 5 tracks into a single column, enforcing equal heights
+  chr_assembly <- p1 / p2 / p3 / p4 / p5 + plot_layout(heights = c(1, 1, 1, 1, 1))
+  
+  return(chr_assembly)
+}
+
+# ---------------------------------------------------------
+# 3. Generate Grid and Export
+# ---------------------------------------------------------
+p_chr1_h1 <- build_chr_plot("Chr1_h1")
+p_chr2_h1 <- build_chr_plot("Chr2_h1")
+p_chr1_h2 <- build_chr_plot("Chr1_h2")
+p_chr2_h2 <- build_chr_plot("Chr2_h2")
+
+# ---------------------------------------------------------
+# 4. Assemble and Align the Proportional 2x2 Grid
+# ---------------------------------------------------------
+# Assemble equal-width columns (the uniform X-limits will handle the visual scaling)
+final_grid <- (p_chr1_h1 | p_chr2_h1) / 
+  (p_chr1_h2 | p_chr2_h2)
+
+# Save to PDF
+ggsave("genome_features_advanced.pdf", plot = final_grid, width = 12, height = 10, device = "pdf")
+
+print("Advanced multi-feature plot successfully generated.")
