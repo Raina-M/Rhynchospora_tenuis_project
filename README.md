@@ -4,7 +4,7 @@ Cutstom scripts for the manuscript of _R. tenuis_ project.
 > Zhang, Meng, et al. "Sex without crossovers mimics clonal reproduction in the holocentric plant Rhynchospora tenuis." bioRxiv (2026): 2026-01.
 > doi: https://doi.org/10.64898/2026.01.17.700054
 
-## Syteny analyses
+## Synteny analyses
 `syri_plot.sh`: DNA collinearity by [SyRI](https://github.com/schneebergerlab/syri) and [plotsr](https://github.com/schneebergerlab/plotsr). Reference sctipts for __Figure 1b__ and __Extended Figure 2__.
 
 `run_genespace.R`: Genome syteny based on orthologous genes. Reference script for running [GeneSpace](https://github.com/jtlovell/GENESPACE) in __Figure 1a__.
@@ -30,17 +30,22 @@ The pipeline is similar to single cell pipeline for pollen nuclei in general wit
 ## ChIP-seq pipeline and relevant analyses
 `ChIP_and_methylation_metaplots/` has the pipeline for DNA methylation data analyses using [Bismark](https://github.com/FelixKrueger/Bismark) and other following plotting scripts. The other ChIP-seq data and analyses were in our another publication [Hofstatter et al.](https://www.sciencedirect.com/science/article/pii/S0092867422007978).
 
-`2_metaplot.sh`: Metaplots in __Extended Data Fig. 1c,d__.
+`2_metaplot.sh`: Scripts for the metaplots in __Extended Data Fig. 1c,d__.
+
+`4_correlation.R` Correlation analysis of epigentic signals in the metaplots (__Extended Data Fig. 1c,d__) - CENH3, H3K4me3, H3K9me2, CG, CHG, CHH between _R. pubera_, _R. breviuscula_, _R. tenuis_ (REC) in __Supplementary Table 2__.
 
 ## Phylogenetic relation of _R. tenuis_ accessions 
 
 ## Pseudogene analyses
+`search_pseudogenes/` includes the complete pileline of pseudogene analyses with Helixer gene annotations and RNA alignments as inputs. RNA alignments were done by mapping RNA short-read sequencing data to diploid _R. breviuscula_ and _R. tenuis_ (REC) assembly using STAR. 
 
 ## Gene conversion detection based on F1 WGS data
 
 ## Other
 __Extended Data Fig. 4a__
+
 __Extended Data Fig. 5a,b__
+
 __Supplementary Fig. 14b, d__
 
 
