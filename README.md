@@ -67,9 +67,9 @@ Although the detection pipeline output some potential gene conversions, they are
 
 
 ## Other
-__Extended Data Fig. 5a,b__
+`plottings/ExDataFig5_plot_haplotype_genome_difference.R`: __Extended Data Fig. 5a,b__
 
-__Supplementary Fig. 14b, d__
+`plottings/SuppFig14_plot_austro_aln_to_tenuis_at_fusion_position.py` __Supplementary Fig. 14b, d__. The input file was a few fields from `PAF` file that from minimap2 output by mapping _R. austrobrasiliensis_ chromosomes/scaffolds to _R. tenuis_ chromosome 1. Please read the script to see what information is needed.
 
 
 ## Final comment
