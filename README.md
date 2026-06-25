@@ -22,11 +22,15 @@ The genotyping of single pollen nuclei used the same pipeline as described in [C
 
 `segregation_bias_ChiSquareTest.R`: Non-mendelian segregation validation in __Figure 3d__.
 
-## Single cell analyses of embryo and endosperm nuclei
+## Single cell ATAC-seq analyses of embryo and endosperm nuclei
+The pipeline is similar to single cell pipeline for pollen nuclei in general with minor modifications. The entire pipeline is available in the folder `embryo_scATAC_analyses/`. This pipeline took the embryo _R. tenuis_ REC accession as an example, but the endosperm analyses has no difference to it. 
 
 ## F1 genotyping
 
 ## ChIP-seq pipeline and relevant analyses
+`ChIP_and_methylation_metaplots/` has the pipeline for DNA methylation data analyses using [Bismark](https://github.com/FelixKrueger/Bismark) and other following plotting scripts. The other ChIP-seq data and analyses were in our another publication [Hofstatter et al.](https://www.sciencedirect.com/science/article/pii/S0092867422007978).
+
+`2_metaplot.sh`: Metaplots in __Extended Data Fig. 1c,d__.
 
 ## Phylogenetic relation of _R. tenuis_ accessions 
 
