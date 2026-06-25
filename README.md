@@ -37,7 +37,9 @@ The pipeline is similar to single cell pipeline for pollen nuclei in general wit
 ## Phylogenetic relation of _R. tenuis_ accessions 
 
 ## Pseudogene analyses
-`search_pseudogenes/` includes the complete pileline of pseudogene analyses with Helixer gene annotations and RNA alignments as inputs. RNA alignments were done by mapping RNA short-read sequencing data to diploid _R. breviuscula_ and _R. tenuis_ (REC) assembly using STAR. 
+`search_pseudogenes/` includes the complete pileline of pseudogene analyses with Helixer gene annotations and RNA alignments as inputs. RNA alignments were done by mapping RNA short-read sequencing data to diploid _R. breviuscula_ and _R. tenuis_ (REC) assembly using STAR. Please note that the results can differ a lot when including the CDSs of TEs. So it is highly recommended to remove the coding sequences of TEs when searching pseudogenes, which are usually largely accumulated in many plant genomes.
+
+`03_report_pseudogenes.R`: Scripts for the plots in __Extended Data Fig. 5c__.
 
 ## Gene conversion detection based on F1 WGS data
 
