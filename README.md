@@ -21,3 +21,24 @@ Helixer. All Ks of the CDSs overlapped with TE annotations were removed. Refer t
 The genotyping of single pollen nuclei used the same pipeline as described in [Castellani, M., Zhang, M. et al](https://doi.org/10.1038/s41477-024-01625-y). The plots in __Figure 3a__ was also part of its pipeline (`hapCO_identification.R` in the [pipeline](https://github.com/Raina-M/detectCO_by_scRNAseq) GitHub page).
 
 `segregation_bias_ChiSquareTest.R`: Non-mendelian segregation validation in __Figure 3d__.
+
+## Single cell analyses of embryo and endosperm nuclei
+
+## F1 genotyping
+
+## ChIP-seq pipeline and relevant analyses
+
+## Phylogenetic relation of _R. tenuis_ accessions 
+
+## Pseudogene analyses
+
+## Gene conversion detection based on F1 WGS data
+
+## Other
+__Extended Data Fig. 4a__
+__Extended Data Fig. 5a,b__
+__Supplementary Fig. 14b, d__
+
+
+## Final comment
+ please open an issue if you have any doubts about the scripts and data processing questions regarding our publication.
