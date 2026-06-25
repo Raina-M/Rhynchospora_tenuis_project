@@ -48,6 +48,8 @@ The genotyping of selfed F1 plants used the same pipeline as described in [Caste
 
 
 ## Phylogenetic relation of _R. tenuis_ accessions 
+`phylogeny_based_on_SCOs/` includes the scripts to construct the phylogenetic tree in __Extended Data Fig. 4b__ based on single copy orthologs (SCOs) among _R.breviuscula_, _R. austrobrasiliensis_, and all haplotypes of _R. tenuis_. SCOs were extracted from the output of OrthoFinder in GENESPACE (check the above section __# Synteny analyses__).
+
 
 ## Pseudogene analyses
 `search_pseudogenes/` includes the complete pileline of pseudogene analyses with Helixer gene annotations and RNA alignments as inputs. RNA alignments were done by mapping RNA short-read sequencing data to diploid _R. breviuscula_ and _R. tenuis_ (REC) assembly using STAR. Please note that the results can differ a lot when including the CDSs of TEs. So it is highly recommended to remove the coding sequences of TEs when searching pseudogenes, which are usually largely accumulated in many plant genomes.
@@ -71,4 +73,4 @@ __Supplementary Fig. 14b, d__
 
 
 ## Final comment
- please open an issue if you have any doubts about the scripts and data processing questions regarding our publication.
+Please open an issue if you have any doubts about the scripts and data processing questions regarding our publication. But before doing it, please make sure you cannot find a solution in the __Methods__ section in our publication.
